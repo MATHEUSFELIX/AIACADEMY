@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +46,33 @@ class Settings(BaseSettings):
 
     dev_skip_auth: bool = False
     dev_student_id: str | None = None
+
+    @field_validator(
+        "ollama_api_key",
+        "anthropic_api_key",
+        "supabase_jwt_secret",
+        "supabase_service_key",
+        mode="before",
+    )
+    @classmethod
+    def strip_optional_secrets(cls, v: object) -> str:
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+            s = s[1:-1].strip()
+        return s
+
+    @field_validator("ollama_host", mode="before")
+    @classmethod
+    def normalize_ollama_host(cls, v: object) -> str:
+        """Base URL apenas (ex.: https://ollama.com). Se vier …/api, remove — senão /api/chat vira …/api/api/chat."""
+        if v is None or str(v).strip() == "":
+            return "https://ollama.com"
+        h = str(v).strip().rstrip("/")
+        while h.lower().endswith("/api"):
+            h = h[:-4].rstrip("/")
+        return h or "https://ollama.com"
 
 
 @lru_cache
