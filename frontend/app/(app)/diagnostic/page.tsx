@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabase } from "@/lib/supabase";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, getAuthToken } from "@/lib/api";
 
 interface StartResp {
   session_id: string;
@@ -23,12 +22,8 @@ export default function DiagnosticPage() {
   }, []);
 
   async function getToken(): Promise<string> {
-    const supabase = getSupabase();
-    const { data } = await supabase.auth.getSession();
-    const t = data.session?.access_token;
-    if (!t) {
-      throw new Error("Sem sessão");
-    }
+    const t = await getAuthToken();
+    if (!t) throw new Error("Sem sessão");
     return t;
   }
 
