@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -13,13 +14,42 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import get_current_student
 from app.memory.redis_cache import rate_limit_check
-from app.models import DiagnosticSession, Student
+from app.models import DiagnosticSession, EpisodicMemory, Student
 from app.services.brainagent_service import (
     diagnostic_opening_message,
     diagnostic_turn,
 )
+from app.services.unlock_service import refresh_unlocks_for_student
 
 router = APIRouter()
+
+_LEVEL_TO_START_LESSON: dict[str, str] = {
+    "level_0": "o-que-e-metrica",
+    "level_1": "sql-motor-analise",
+    "level_2": "sql-motor-analise",
+    "level_3": "primeiro-modelo",
+    "level_4": "ensemble-avaliacao",
+    "level_5": "lightgbm-intro",
+    "level_6": "eval-framework",
+    "level_7": "shap-intro",
+    "level_8": "mlflow-intro",
+    "level_9": "feature-store",
+    "level_10": "phase-transition",
+}
+
+_LEVEL_ESTIMATED_HOURS: dict[str, int] = {
+    "level_0": 120,
+    "level_1": 110,
+    "level_2": 100,
+    "level_3": 90,
+    "level_4": 80,
+    "level_5": 70,
+    "level_6": 60,
+    "level_7": 50,
+    "level_8": 35,
+    "level_9": 20,
+    "level_10": 10,
+}
 
 
 class AnswerIn(BaseModel):
@@ -79,42 +109,56 @@ def diagnostic_answer(
     last_block = conv[-2].get("block", "A") if len(conv) >= 2 else "A"
 
     msg, meta = diagnostic_turn(summary, body.answer, last_block)
-    conv.append({"role": "assistant", "content": msg, "block": meta.get("next_block", "A")})
+    next_block = meta.get("next_block", "A")
+    conv.append({"role": "assistant", "content": msg, "block": next_block})
     sess.conversation = conv
 
     if meta.get("block_completed"):
-        blk = meta.get("next_block", "A")
-        if blk in ("B", "C", "D", "done"):
-            if last_block == "A" or meta.get("next_block") == "B":
-                sess.block_a_completed = True
-        # Simplified block flags
-        if meta.get("next_block") == "B":
+        if last_block == "A" or next_block == "B":
             sess.block_a_completed = True
-        if meta.get("next_block") == "C":
+        if last_block == "B" or next_block == "C":
             sess.block_b_completed = True
-        if meta.get("next_block") == "D":
+        if last_block == "C" or next_block == "D":
             sess.block_c_completed = True
+        if last_block == "D" or meta.get("done"):
+            sess.block_d_completed = True
 
     if meta.get("done"):
-        from datetime import datetime, timezone
-
         lvl = meta.get("identified_level") or "level_1"
         sess.status = "completed"
         sess.completed_at = datetime.now(timezone.utc)
         sess.identified_level = lvl
+        sess.block_d_completed = True
         student.diagnostic_status = "completed"
         student.current_level = lvl
         student.brainagent_notes = msg[:2000]
+
+        db.add(
+            EpisodicMemory(
+                student_id=student.id,
+                context="diagnostic_completion",
+                action=f"diagnostic_completed level={lvl}",
+                outcome=msg[:500],
+                valence=0.8,
+                importance=1.0,
+            )
+        )
+
         db.commit()
+        refresh_unlocks_for_student(db, student.id)
+
+        start_lesson = _LEVEL_TO_START_LESSON.get(lvl, "o-que-e-metrica")
+        estimated_hours = _LEVEL_ESTIMATED_HOURS.get(lvl, 85)
+
         return {
             "type": "completed",
             "identified_level": lvl,
             "message": msg,
             "summary": msg[:400],
             "recommended_path": {
-                "start_lesson": "sql-motor-analise",
+                "start_lesson": start_lesson,
                 "total_lessons": 47,
-                "estimated_hours": 85,
+                "estimated_hours": estimated_hours,
             },
         }
 
@@ -122,7 +166,7 @@ def diagnostic_answer(
     return {
         "type": "question",
         "message": msg,
-        "block": meta.get("next_block", "A"),
+        "block": next_block,
         "question_number": sum(1 for m in conv if m.get("role") == "assistant"),
     }
 

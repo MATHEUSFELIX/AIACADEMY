@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Lesson, Student, StudentLessonProgress
+from app.models import Lesson, Student, StudentLessonProgress, XpTransaction
 
 logger = logging.getLogger(__name__)
 
@@ -87,5 +87,40 @@ def unlock_starting_lessons(db: Session, student_id: uuid.UUID) -> None:
 
 
 def touch_activity(db: Session, student: Student) -> None:
-    student.last_activity_at = datetime.utcnow()
+    """Update last_activity_at and recompute streak_days."""
+    now = datetime.now(timezone.utc)
+    today: date = now.date()
+
+    last = student.last_activity_at
+    if last is not None:
+        last_date = last.date() if isinstance(last, datetime) else last
+        days_since = (today - last_date).days
+        if days_since == 0:
+            # Already counted today — no change to streak
+            pass
+        elif days_since == 1:
+            # Consecutive day — extend streak
+            student.streak_days = (student.streak_days or 0) + 1
+            _grant_streak_xp(db, student)
+        else:
+            # Gap > 1 day — reset streak
+            student.streak_days = 1
+    else:
+        student.streak_days = 1
+
+    student.last_activity_at = now
     db.commit()
+
+
+def _grant_streak_xp(db: Session, student: Student) -> None:
+    """Grant +50 XP per day after a 7-day streak is reached."""
+    streak = student.streak_days or 0
+    if streak >= 7:
+        student.total_xp = (student.total_xp or 0) + 50
+        db.add(
+            XpTransaction(
+                student_id=student.id,
+                amount=50,
+                reason=f"streak_{streak}_days",
+            )
+        )

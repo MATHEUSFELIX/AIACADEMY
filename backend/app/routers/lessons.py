@@ -14,14 +14,27 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.deps import get_current_student
+from app.memory.chroma_semantic import upsert_student_concept
 from app.memory.redis_cache import (
     pending_exercise_delete,
     pending_exercise_get,
     pending_exercise_set,
     rate_limit_check,
 )
-from app.models import ExerciseSubmission, Lesson, Student, StudentLessonProgress, XpTransaction
-from app.services.brainagent_service import evaluate_submission_payload, generate_exercise_payload
+from app.models import (
+    EpisodicMemory,
+    ExerciseSubmission,
+    Lesson,
+    ProceduralMemory,
+    Student,
+    StudentLessonProgress,
+    XpTransaction,
+)
+from app.services.brainagent_service import (
+    evaluate_submission_payload,
+    extract_procedural_pattern,
+    generate_exercise_payload,
+)
 from app.services.student_service import touch_activity
 from app.services.unlock_service import (
     lesson_is_accessible,
@@ -252,15 +265,27 @@ def submit_exercise(
 
     xp_base = lesson.xp_reward
     xp = xp_base
+    variant = pending.get("variant", "padrao")
+
     if body.used_hint:
         xp = max(0, xp_base - 10)
     if composite >= 0.95:
         xp = int(xp * 1.2)
+    if variant == "desafio" and composite >= 0.75:
+        xp = int(xp * 1.3)
 
-    variant = pending.get("variant", "padrao")
+    attempt_number = db.execute(
+        select(func.count()).select_from(ExerciseSubmission).where(
+            ExerciseSubmission.student_id == student.id,
+            ExerciseSubmission.lesson_id == lesson_id,
+        )
+    ).scalar() or 0
+    attempt_number += 1
+
     sub = ExerciseSubmission(
         student_id=student.id,
         lesson_id=lesson_id,
+        attempt_number=attempt_number,
         student_answer=body.answer,
         exercise_variant=variant,
         generated_exercise=payload,
@@ -281,7 +306,8 @@ def submit_exercise(
             StudentLessonProgress.lesson_id == lesson_id,
         )
     ).scalar_one_or_none()
-    unlocked: list[str] = []
+
+    lesson_completed = composite >= 0.75
     if prog:
         prog.score_technical = tech
         prog.score_methodological = meth
@@ -292,10 +318,10 @@ def submit_exercise(
         prog.used_hint = body.used_hint
         prog.xp_earned = xp
         prog.attempts = (prog.attempts or 0) + 1
-        if composite >= 0.75:
+        if lesson_completed:
             prog.status = "completed"
             prog.completed_at = datetime.now(timezone.utc)
-        student.total_xp += xp
+        student.total_xp = (student.total_xp or 0) + xp
         db.add(
             XpTransaction(
                 student_id=student.id,
@@ -305,24 +331,61 @@ def submit_exercise(
             )
         )
 
+    db.add(
+        EpisodicMemory(
+            student_id=student.id,
+            lesson_id=lesson_id,
+            context=f"lesson={lesson_id} variant={variant}",
+            action=f"exercise_submit score={composite:.2f}",
+            outcome=feedback[:500] if feedback else None,
+            valence=composite,
+            importance=min(1.0, composite + 0.1),
+        )
+    )
+
     db.commit()
     pending_exercise_delete(body.exercise_id)
     refresh_unlocks_for_student(db, student.id)
     maybe_advance_level(db, student)
 
-    if composite >= 0.75:
-        for lid in lesson.connections or []:
-            other = db.execute(
-                select(StudentLessonProgress).where(
-                    StudentLessonProgress.student_id == student.id,
-                    StudentLessonProgress.lesson_id == lid,
+    procedural_written: list[str] = []
+    if lesson_completed:
+        pattern_data = extract_procedural_pattern(
+            lesson.title,
+            body.answer,
+            feedback,
+            composite,
+            student.profile,
+        )
+        if pattern_data:
+            existing = db.execute(
+                select(ProceduralMemory).where(
+                    ProceduralMemory.student_id == student.id,
+                    ProceduralMemory.pattern == pattern_data["pattern"],
                 )
             ).scalar_one_or_none()
-            if other and other.status == "locked":
-                # unlocked via refresh_unlocks
-                pass
+            if existing:
+                existing.confidence = min(1.0, float(existing.confidence) + 0.05)
+                existing.evidence_count = (existing.evidence_count or 1) + 1
+            else:
+                db.add(
+                    ProceduralMemory(
+                        student_id=student.id,
+                        pattern=pattern_data["pattern"],
+                        category=pattern_data.get("category", "geral"),
+                        confidence=float(pattern_data.get("confidence", 0.7)),
+                        evidence_count=1,
+                    )
+                )
+            db.commit()
+            procedural_written.append(pattern_data["pattern"])
 
-    refresh_unlocks_for_student(db, student.id)
+        upsert_student_concept(
+            str(student.id),
+            lesson_id,
+            f"{lesson.title}: score={composite:.2f} variant={variant}",
+            {"score": composite, "variant": variant, "lesson_id": lesson_id},
+        )
 
     return {
         "scores": {
@@ -334,11 +397,12 @@ def submit_exercise(
         },
         "feedback": feedback,
         "xp_earned": xp,
-        "lesson_completed": composite >= 0.75,
-        "unlocked_lessons": unlocked,
+        "lesson_completed": lesson_completed,
+        "unlocked_lessons": [],
         "memory_updated": {
             "episodic": True,
-            "procedural": [feedback[:80]] if feedback else [],
+            "procedural": procedural_written,
+            "semantic": lesson_completed,
         },
     }
 
