@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, getAuthToken } from "@/lib/api";
 
 interface LessonDetail {
   id: string;
@@ -27,9 +26,7 @@ export default function LessonPage() {
     let cancelled = false;
     (async () => {
       try {
-        const supabase = getSupabase();
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
+        const token = await getAuthToken();
         if (!token) {
           setError("Faça login.");
           return;
@@ -148,9 +145,7 @@ function ExerciseSection({ lessonId }: { lessonId: string }) {
     setLoading(true);
     setFeedback(null);
     try {
-      const supabase = getSupabase();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const token = await getAuthToken();
       if (!token) {
         return;
       }
@@ -175,9 +170,7 @@ function ExerciseSection({ lessonId }: { lessonId: string }) {
     }
     setLoading(true);
     try {
-      const supabase = getSupabase();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+      const token = await getAuthToken();
       if (!token) {
         return;
       }

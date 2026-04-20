@@ -2,6 +2,21 @@
 const RAW = process.env.NEXT_PUBLIC_API_URL?.trim();
 export const API = RAW ? RAW.replace(/\/$/, "") : "/api/backend";
 
+export const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === "true";
+
+/** Returns the Supabase access token, or a placeholder in dev-skip-auth mode. */
+export async function getAuthToken(): Promise<string | null> {
+  if (DEV_SKIP_AUTH) return "dev-token";
+  try {
+    const { getSupabase } = await import("@/lib/supabase");
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

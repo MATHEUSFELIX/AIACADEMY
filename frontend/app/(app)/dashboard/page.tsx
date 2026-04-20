@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSupabase } from "@/lib/supabase";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, getAuthToken } from "@/lib/api";
 
 interface Overview {
   next_lesson: {
@@ -30,9 +29,7 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       try {
-        const supabase = getSupabase();
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
+        const token = await getAuthToken();
         if (!token) {
           setError("Faça login para ver o painel.");
           return;
