@@ -1,0 +1,58 @@
+{
+  "id": "o-que-e-metrica",
+  "title": "O que é uma métrica",
+  "subtitle": "Alfabetização de dados",
+  "module": "ZERO",
+  "level_number": 0,
+  "order_in_level": 1,
+  "xp_reward": 80,
+  "duration_min": 15,
+  "prerequisites": [],
+  "connections": ["sql-motor-analise"],
+  "kb_confidence": 0.95,
+  "kb_entropy": 5.2,
+  "hook_config": {
+    "icon_sequence": ["dashboard", "question"],
+    "scenes": [
+      {
+        "text": "Toda OKR séria precisa de um número em que você confia para agir.",
+        "sub": "PicPay · Growth"
+      }
+    ],
+    "cta": "Ir para o widget"
+  },
+  "widget_config": {
+    "type": "simulator",
+    "controls": [
+      {
+        "id": "lift",
+        "label": "Lift da campanha",
+        "min": 0,
+        "max": 30,
+        "default": 8,
+        "unit": "%"
+      }
+    ],
+    "chart_type": "line",
+    "reveal_button": {
+      "label": "Revelar leitura",
+      "insight_template": "Com lift {lift}%, o incremental precisa cobrir custo incremental."
+    }
+  },
+  "kb_content": {
+    "resumo": "Métrica é medida quantificável vinculada a decisão; evite números que só impressionam.",
+    "quando_usar": ["Acompanhar performance no tempo", "Priorizar backlog com impacto"],
+    "quando_nao_usar": ["Definição ainda qualitativa", "Dado sem linha de base"],
+    "formula": {},
+    "codigo": "",
+    "antipatterns": ["Usar downloads como norte sem conversão"],
+    "fintech_aplicacao": "TPV, aprovação Pix, spread, inadimplência segmentada."
+  },
+  "exercise_base": {
+    "base_context": "Você lidera produto em um banco digital médio.",
+    "base_question": "Defina uma métrica norte para adoção Pix PJ e explique por que não é vanity.",
+    "reference_solution": "Deve ser acionável, comparável no tempo e ligada a receita/retenção.",
+    "hint": "Compare com contagem bruta de cadastros sem uso.",
+    "rubric_summary": "Definição operacional, ligação com negócio, contraste explícito com vanity."
+  }
+}

@@ -1,0 +1,57 @@
+# ============================================================
+# MasterAI Academy — .gitignore
+# ============================================================
+
+# Ambiente — NUNCA commitar
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Playwright
+playwright-report/
+test-results/
+
+# Docker
+.docker/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# ChromaDB local
+chroma/
+
+# Uploads temporários
+uploads/tmp/

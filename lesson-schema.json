@@ -1,0 +1,494 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MasterAI Academy — Lesson Schema v1.0",
+  "description": "Schema que TODAS as aulas devem seguir. Nunca quebrar este contrato.",
+
+  "lesson": {
+    "id": "string — slug único, ex: did-diferenca-diferencas",
+    "title": "string — título completo",
+    "subtitle": "string — subtítulo descritivo",
+    "module": "A | B | C | D | E | ZERO",
+    "level_number": "integer 0-10",
+    "order_in_level": "integer — posição dentro do nível",
+    "xp_reward": "integer — XP base (sem bônus)",
+    "duration_min": "integer — duração estimada em minutos",
+    "prerequisites": ["array de lesson IDs"],
+    "connections": ["array de lesson IDs — conceitos relacionados"],
+    "kb_confidence": "float 0-1 — confiança bayesiana do conceito",
+    "kb_entropy": "float — entropia Shannon do conteúdo",
+
+    "hook_config": "object — ver seção HOOK",
+    "widget_config": "object — ver seção WIDGET",
+    "kb_content": "object — ver seção KB",
+    "exercise_base": "object — ver seção EXERCISE"
+  },
+
+  "HOOK": {
+    "description": "Cenário animado SVG que cria o problema antes da teoria",
+    "icon_sequence": [
+      "meeting | dashboard | question | split | graph | code | chart | data",
+      "Um ícone por cena. Máximo 6 cenas."
+    ],
+    "scenes": [
+      {
+        "text": "string — frase principal da cena (max 120 chars)",
+        "sub": "string — contexto em cima (ex: 'PicPay · Sala de Resultados')"
+      }
+    ],
+    "cta": "string — texto do botão final (ex: 'Aprender como resolver →')"
+  },
+
+  "WIDGET": {
+    "description": "Widget interativo. Tipo determina os controles disponíveis.",
+    "type": "simulator | algorithm | comparator | graph | timeseries",
+
+    "simulator": {
+      "description": "Sliders que alteram parâmetros e atualizam gráfico ao vivo",
+      "controls": [
+        {
+          "id": "string",
+          "label": "string",
+          "min": "number",
+          "max": "number",
+          "default": "number",
+          "unit": "string — ex: '%', 'pts', 'k clientes'"
+        }
+      ],
+      "chart_type": "line | bar | scatter | area",
+      "reveal_button": {
+        "label": "string — ex: 'Revelar efeito DiD'",
+        "insight_template": "string — template com {variavel} dos controles"
+      }
+    },
+
+    "algorithm": {
+      "description": "Pontos em espaço 2D, aluno ajusta parâmetros e vê clusters/anomalias",
+      "controls": [
+        {
+          "id": "string",
+          "label": "string",
+          "type": "slider | toggle | select"
+        }
+      ],
+      "dataset": "string — nome do dataset sintético a gerar"
+    },
+
+    "comparator": {
+      "description": "Input de características do problema, output é recomendação",
+      "dimensions": [
+        {
+          "id": "string",
+          "label": "string",
+          "options": ["array de strings"]
+        }
+      ]
+    },
+
+    "graph": {
+      "description": "Nós e arestas interativos",
+      "initial_nodes": "integer",
+      "allow_add_edges": "boolean"
+    },
+
+    "timeseries": {
+      "description": "Série temporal que responde a parâmetros",
+      "controls": [
+        {
+          "id": "string",
+          "label": "string",
+          "type": "slider"
+        }
+      ]
+    }
+  },
+
+  "KB": {
+    "description": "Knowledge Base em 4 abas. Conteúdo de referência, não leitura linear.",
+    "tabs": {
+      "quando": {
+        "usar": ["array de strings — máximo 5 itens"],
+        "nao_usar": ["array de strings — máximo 4 itens"]
+      },
+      "formula": {
+        "items": [
+          {
+            "label": "string — ex: 'Definição intuitiva'",
+            "value": "string — fórmula ou texto técnico",
+            "type": "formula | text | code"
+          }
+        ]
+      },
+      "codigo": {
+        "filename": "string — ex: 'did_campanha.sql'",
+        "language": "sql | python | pyspark",
+        "code": "string — código completo"
+      },
+      "antipatterns": ["array de strings — máximo 5, começar com 'Nunca'"]
+    }
+  },
+
+  "EXERCISE": {
+    "description": "Exercício base que o BrainAgent adapta por perfil e nível",
+    "base_context": "string — contexto genérico que o BrainAgent vai personalizar",
+    "base_question": "string — pergunta base que o BrainAgent vai adaptar",
+    "base_data": "string — dados de referência (serão adaptados ao perfil)",
+    "correct_answer_key": {
+      "description": "Referência para o BrainAgent avaliar — não mostrar ao aluno",
+      "expected_values": ["array de valores ou ranges esperados"],
+      "key_concepts": ["conceitos que devem aparecer na resposta"],
+      "antipatterns_to_check": ["erros comuns que o BrainAgent deve detectar"]
+    },
+    "hint": "string — dica disponível mediante custo de XP",
+    "variants": {
+      "scaffolded": {
+        "scaffold_code": "string — código incompleto com TODOs",
+        "extra_hints": ["array de strings — dicas adicionais automáticas"]
+      },
+      "desafio": {
+        "twist": "string — complicação adicional no enunciado",
+        "dataset_issue": "string | null — problema no dataset que o aluno deve detectar"
+      }
+    },
+    "profiles": {
+      "analytics": {
+        "context_override": "string — contexto para perfil analytics (Delta Lake, PySpark)",
+        "data_override": "string | null — dados específicos para analytics"
+      },
+      "marketing": {
+        "context_override": "string — contexto para perfil marketing",
+        "data_override": "string | null"
+      },
+      "strategy": {
+        "context_override": "string — contexto para perfil strategy",
+        "data_override": "string | null"
+      },
+      "c_level": {
+        "context_override": "string — contexto para perfil c_level",
+        "data_override": "string | null"
+      },
+      "produto": {
+        "context_override": "string — contexto para perfil produto",
+        "data_override": "string | null"
+      }
+    }
+  },
+
+  "EXAMPLES": {
+
+    "example_level_0": {
+      "id": "o-que-e-um-dado",
+      "title": "O que é um dado",
+      "subtitle": "Alfabetização de dados — o primeiro passo",
+      "module": "ZERO",
+      "level_number": 0,
+      "order_in_level": 1,
+      "xp_reward": 80,
+      "duration_min": 20,
+      "prerequisites": [],
+      "connections": ["o-que-e-tabela", "metrica-vs-dimensao"],
+      "kb_confidence": 0.99,
+      "kb_entropy": 4.2,
+
+      "hook_config": {
+        "icon_sequence": ["data", "question", "chart"],
+        "scenes": [
+          {
+            "text": "Seu gestor manda uma mensagem: 'Me manda os números de vendas de ontem.'",
+            "sub": "Segunda-feira, 9h"
+          },
+          {
+            "text": "Você abre o sistema. Vê centenas de linhas. Por onde começa?",
+            "sub": "O problema real"
+          },
+          {
+            "text": "Tudo começa entendendo o que um dado realmente é.",
+            "sub": "É aqui que começamos."
+          }
+        ],
+        "cta": "Entender de vez →"
+      },
+
+      "widget_config": {
+        "type": "comparator",
+        "description": "Drag items para classificar como dado ou não-dado",
+        "dimensions": [
+          {
+            "id": "item_type",
+            "label": "Isso é um dado?",
+            "options": ["Sim — é um dado", "Não — é uma informação derivada", "Não — é uma opinião"]
+          }
+        ],
+        "examples": [
+          { "item": "R$ 1.250,00 em vendas às 14h32", "correct": "Sim — é um dado" },
+          { "item": "Vendas foram boas hoje", "correct": "Não — é uma opinião" },
+          { "item": "Taxa de conversão de 12%", "correct": "Não — é uma informação derivada" },
+          { "item": "27 produtos vendidos", "correct": "Sim — é um dado" }
+        ]
+      },
+
+      "kb_content": {
+        "tabs": {
+          "quando": {
+            "usar": [
+              "Sempre que você precisa responder uma pergunta com evidência",
+              "Quando um gestor pede 'os números' de alguma coisa",
+              "Antes de qualquer análise — entender o que você tem"
+            ],
+            "nao_usar": [
+              "Não confundir dado bruto com conclusão — conclusão vem depois",
+              "Não assumir que dado = verdade — dados têm erros, nulos e vieses"
+            ]
+          },
+          "formula": {
+            "items": [
+              {
+                "label": "O que é um dado",
+                "value": "Dado = fato observável e registrado. Ex: '27 vendas às 14h' é um dado. 'Vendas foram boas' é uma opinião.",
+                "type": "text"
+              },
+              {
+                "label": "Dado vs Informação vs Insight",
+                "value": "Dado → (processamento) → Informação → (análise) → Insight → (decisão) → Ação",
+                "type": "text"
+              }
+            ]
+          },
+          "codigo": {
+            "filename": "primeiro_dado.sql",
+            "language": "sql",
+            "code": "-- Seu primeiro dado em SQL\n-- Uma linha = um registro = um dado\nSELECT\n  data_venda,\n  valor,\n  produto\nFROM vendas\nWHERE data_venda = CURRENT_DATE\nLIMIT 10;"
+          },
+          "antipatterns": [
+            "Nunca confundir dado com conclusão — dado é o fato, conclusão vem da análise",
+            "Nunca ignorar nulos — um campo vazio é informação importante",
+            "Nunca assumir que dado registrado está correto — sempre validar"
+          ]
+        }
+      },
+
+      "exercise_base": {
+        "base_context": "Você recebeu uma planilha com 5 colunas: data, cliente_id, produto, valor, canal.",
+        "base_question": "Identifique: (1) quais colunas são dados brutos, (2) quais seriam informações derivadas, (3) que pergunta de negócio você consegue responder com esses dados.",
+        "base_data": "data | cliente_id | produto | valor | canal\n2024-03-01 | C001 | Cofrinho | 50.00 | App\n2024-03-01 | C002 | Cartão | 1200.00 | App\n2024-03-02 | C001 | Pix | 30.00 | Web",
+        "correct_answer_key": {
+          "expected_values": ["dados brutos: data, cliente_id, produto, valor, canal"],
+          "key_concepts": ["dado bruto", "informação derivada", "pergunta de negócio"],
+          "antipatterns_to_check": ["confundir taxa de conversão com dado bruto", "ignorar colunas"]
+        },
+        "hint": "Dados brutos são os fatos observados diretamente. Uma 'taxa de conversão' não está na tabela — ela seria calculada a partir dos dados.",
+        "variants": {
+          "scaffolded": {
+            "scaffold_code": "-- Complete a análise\n-- 1. Dados brutos desta tabela: ___, ___, ___, ___, ___\n-- 2. Informação derivada (precisaria calcular): ___\n-- 3. Pergunta que consigo responder: ___",
+            "extra_hints": [
+              "Olhe coluna por coluna — cada uma existe diretamente na tabela?",
+              "Taxa de conversão exigiria calcular: conversoes/total_clientes"
+            ]
+          },
+          "desafio": {
+            "twist": "A coluna 'canal' tem valores nulos em 30% das linhas. Isso afeta sua análise? Como trataria?",
+            "dataset_issue": "30% de nulos na coluna canal"
+          }
+        },
+        "profiles": {
+          "analytics": {
+            "context_override": "Você recebeu uma tabela Delta Lake com transações do PicPay.",
+            "data_override": null
+          },
+          "marketing": {
+            "context_override": "Você recebeu um export do CRM com dados de campanha.",
+            "data_override": "data | lead_id | canal | status | valor_oferta\n2024-03-01 | L001 | Email | Abriu | 50.00\n2024-03-01 | L002 | Push | Ignorou | 50.00"
+          },
+          "strategy": {
+            "context_override": "Você recebeu um relatório de performance de produto para apresentar ao board.",
+            "data_override": null
+          },
+          "c_level": {
+            "context_override": "Você recebeu um dashboard com métricas operacionais da semana.",
+            "data_override": null
+          },
+          "produto": {
+            "context_override": "Você recebeu dados de comportamento no app para entender o funil.",
+            "data_override": "evento | usuario_id | tela | timestamp\nclick | U001 | home | 14:32:01\nscroll | U001 | home | 14:32:05\nclick | U002 | produto | 14:33:00"
+          }
+        }
+      }
+    },
+
+    "example_level_5": {
+      "id": "did-diferenca-diferencas",
+      "title": "DiD — Diferença em Diferenças",
+      "subtitle": "Inferência causal para campanhas e políticas",
+      "module": "B",
+      "level_number": 5,
+      "order_in_level": 2,
+      "xp_reward": 120,
+      "duration_min": 30,
+      "prerequisites": ["a-b-testing", "sql-motor-analise"],
+      "connections": ["rdd-regressao-descontinuidade", "bayesian-hierarchical", "x-learner-double-ml"],
+      "kb_confidence": 0.95,
+      "kb_entropy": 6.1,
+
+      "hook_config": {
+        "icon_sequence": ["meeting", "dashboard", "question", "split", "graph"],
+        "scenes": [
+          {
+            "text": "Segunda-feira, 9h. Reunião com o diretor.",
+            "sub": "PicPay · Sala de Resultados"
+          },
+          {
+            "text": "\"A campanha do cofrinho custou R$ 2.4M. Funcionou?\"",
+            "sub": "Diretor Financeiro"
+          },
+          {
+            "text": "Você abre o dashboard. Engajamento subiu 22% no período.",
+            "sub": "Seus dados"
+          },
+          {
+            "text": "Mas o mercado também subiu. Sazonalidade? Tendência? Coincidência?",
+            "sub": "O problema real"
+          },
+          {
+            "text": "Como isolar o efeito REAL da campanha do resto?",
+            "sub": "É aqui que o DiD entra."
+          }
+        ],
+        "cta": "Aprender como resolver →"
+      },
+
+      "widget_config": {
+        "type": "simulator",
+        "controls": [
+          {
+            "id": "efeitoReal",
+            "label": "Efeito real da campanha",
+            "min": 0,
+            "max": 40,
+            "default": 18,
+            "unit": "%"
+          },
+          {
+            "id": "ruido",
+            "label": "Ruído / sazonalidade",
+            "min": 0,
+            "max": 20,
+            "default": 5,
+            "unit": "pts"
+          },
+          {
+            "id": "n",
+            "label": "Tamanho da amostra",
+            "min": 50,
+            "max": 2000,
+            "default": 500,
+            "unit": ""
+          }
+        ],
+        "chart_type": "line",
+        "reveal_button": {
+          "label": "Revelar efeito DiD",
+          "insight_template": "DiD estimado: +{did_estimado}% (efeito real: {efeitoReal}%, desvio: {desvio}pp)"
+        }
+      },
+
+      "kb_content": {
+        "tabs": {
+          "quando": {
+            "usar": [
+              "Você tem dados antes e depois da intervenção",
+              "Há um grupo de controle comparável (GC ou GCU)",
+              "A intervenção não foi atribuída aleatoriamente",
+              "Campanhas de marketing, mudanças de limite, lançamento de funcionalidade"
+            ],
+            "nao_usar": [
+              "Tendências pré-intervenção não são paralelas entre os grupos",
+              "Há spillover: o tratamento contamina o grupo de controle",
+              "Você controla a atribuição → use A/B Testing direto"
+            ]
+          },
+          "formula": {
+            "items": [
+              {
+                "label": "Definição intuitiva",
+                "value": "DiD = (Ȳ_tratado_depois − Ȳ_tratado_antes) − (Ȳ_controle_depois − Ȳ_controle_antes)",
+                "type": "formula"
+              },
+              {
+                "label": "Forma de regressão",
+                "value": "Y = α + β₁·Tratado + β₂·Post + β₃·(Tratado × Post) + ε",
+                "type": "formula"
+              },
+              {
+                "label": "Interpretação de β₃",
+                "value": "β₃ é o efeito causal. Exige suposição de tendências paralelas no pré-período.",
+                "type": "text"
+              }
+            ]
+          },
+          "codigo": {
+            "filename": "did_campanha.sql",
+            "language": "sql",
+            "code": "WITH base AS (\n  SELECT\n    cliente_id,\n    grupo,\n    periodo,\n    AVG(engajamento) AS media\n  FROM silver.campanha_cofrinho\n  GROUP BY 1, 2, 3\n),\ndeltas AS (\n  SELECT\n    grupo,\n    MAX(CASE WHEN periodo='post' THEN media END) -\n    MAX(CASE WHEN periodo='pre'  THEN media END) AS delta\n  FROM base\n  GROUP BY grupo\n)\nSELECT\n  MAX(CASE WHEN grupo='tratado'  THEN delta END) -\n  MAX(CASE WHEN grupo='controle' THEN delta END) AS did_estimate\nFROM deltas"
+          },
+          "antipatterns": [
+            "Nunca apresentar DiD sem plotar tendências pré-intervenção",
+            "Nunca usar quando o grupo de controle foi selecionado de forma endógena",
+            "Nunca ignorar erros padrão clusterizados por unidade de tratamento",
+            "Nunca chamar de 'causal' sem checar tendências paralelas explicitamente",
+            "Nunca usar DiD aditivo quando Y tem distribuição log-normal — use Multiplicative DiD"
+          ]
+        }
+      },
+
+      "exercise_base": {
+        "base_context": "Uma campanha de cashback foi lançada para 50.000 clientes selecionados em março de 2024. Outros 50.000 clientes com perfil similar não receberam a campanha.",
+        "base_question": "Calcule o efeito DiD da campanha sobre o engajamento médio semanal. Depois interprete: a campanha valeu o investimento de R$ 2.4M?",
+        "base_data": "-- Resumo dos dados:\n-- Tratado  | Pré:  4.2 sessões/semana\n-- Tratado  | Pós:  5.8 sessões/semana  (+1.6)\n-- Controle | Pré:  4.1 sessões/semana\n-- Controle | Pós:  4.6 sessões/semana  (+0.5)\n-- Receita incremental: R$ 0.80 por sessão adicional/cliente",
+        "correct_answer_key": {
+          "expected_values": ["1.1 sessões/semana", "1,1"],
+          "key_concepts": ["DiD = 1.1", "ROI", "tendências paralelas"],
+          "antipatterns_to_check": [
+            "usar só o delta do tratado sem subtrair o controle",
+            "não calcular o ROI financeiro",
+            "não mencionar a suposição de tendências paralelas"
+          ]
+        },
+        "hint": "DiD = (Tratado_pós − Tratado_pré) − (Controle_pós − Controle_pré). Depois: efeito × clientes × receita_por_sessão.",
+        "variants": {
+          "scaffolded": {
+            "scaffold_code": "-- Complete o cálculo\n-- Delta tratado = ___ - ___ = ___\n-- Delta controle = ___ - ___ = ___\n-- DiD = ___ - ___ = ___\n-- ROI: DiD × 50.000 clientes × R$ 0.80/sessão = R$ ___/semana",
+            "extra_hints": [
+              "Delta = valor depois - valor antes",
+              "DiD = delta do grupo tratado - delta do grupo controle"
+            ]
+          },
+          "desafio": {
+            "twist": "Ao plotar as tendências pré-campanha, você percebe que o grupo tratado crescia 0.3 sessões/semana mais rápido que o controle mesmo antes da campanha. O que isso significa para o DiD?",
+            "dataset_issue": "violação da suposição de tendências paralelas"
+          }
+        },
+        "profiles": {
+          "analytics": {
+            "context_override": "Você é analista no PicPay. Os dados estão na tabela silver.campanha_cofrinho_2024 no Delta Lake. Escreva o SQL completo para calcular o DiD.",
+            "data_override": "-- silver.campanha_cofrinho_2024\n-- colunas: cliente_id, grupo, periodo, engajamento_semanal_medio"
+          },
+          "marketing": {
+            "context_override": "Você é analista de marketing no Santander. Uma campanha de email foi enviada para 50k clientes. Calcule o DiD de taxa de abertura e interprete se a campanha gerou resultado incremental.",
+            "data_override": "-- Tratado  | Pré: 18% abertura | Pós: 24% abertura\n-- Controle | Pré: 17% abertura | Pós: 19% abertura\n-- Custo da campanha: R$ 120k"
+          },
+          "strategy": {
+            "context_override": "Você precisa apresentar o resultado da campanha ao board do Mastercard. Calcule o DiD e prepare uma interpretação executiva: a campanha foi custo-efetiva?",
+            "data_override": null
+          },
+          "c_level": {
+            "context_override": "Como diretor, você precisa decidir se aprova a próxima rodada da campanha com budget de R$ 5M. O que o DiD te diz sobre o ROI?",
+            "data_override": null
+          },
+          "produto": {
+            "context_override": "O time de produto lançou uma nova feature para 50k usuários. Use DiD para medir se a feature aumentou o engajamento real ou se foi tendência de mercado.",
+            "data_override": "-- Tratado  | Pré: 3.1 sessões/semana | Pós: 4.4 sessões/semana\n-- Controle | Pré: 3.0 sessões/semana | Pós: 3.8 sessões/semana"
+          }
+        }
+      }
+    }
+  }
+}

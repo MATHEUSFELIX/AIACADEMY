@@ -1,0 +1,45 @@
+{
+  "id": "sql-motor-analise",
+  "title": "SQL como motor de análise",
+  "subtitle": "Consultas reprodutíveis na camada Silver",
+  "module": "D",
+  "level_number": 1,
+  "order_in_level": 1,
+  "xp_reward": 120,
+  "duration_min": 30,
+  "prerequisites": ["o-que-e-metrica"],
+  "connections": [],
+  "kb_confidence": 0.92,
+  "kb_entropy": 6.0,
+  "hook_config": {
+    "icon_sequence": ["data", "code", "chart"],
+    "scenes": [
+      {
+        "text": "O mesmo SQL tem que rodar segunda e sexta com resultados auditáveis.",
+        "sub": "Santander · Dados"
+      }
+    ],
+    "cta": "Abrir exercício guiado"
+  },
+  "widget_config": {
+    "type": "graph",
+    "controls": [],
+    "chart_type": "bar"
+  },
+  "kb_content": {
+    "resumo": "SQL estrutura o fluxo analítico: filtros → agregações → qualidade.",
+    "quando_usar": ["Base única para squads", "Governança de métricas"],
+    "quando_nao_usar": ["Substituir experimentação causal sem desenho"],
+    "formula": {},
+    "codigo": "SELECT DATE_TRUNC('week', ts) AS w, COUNT(*) AS evt FROM silver.pix_evento GROUP BY 1;",
+    "antipatterns": ["SELECT * em tabelas largas sem projeção"],
+    "fintech_aplicacao": "Jornada Pix, cohorts de adquirentes, conciliação TPV."
+  },
+  "exercise_base": {
+    "base_context": "Camada silver.cliente_evento no Databricks.",
+    "base_question": "Escreva SQL que calcule MAU por semana para clientes PJ ativos.",
+    "reference_solution": "MAU = count distinct user_id por semana com filtros PJ.",
+    "hint": "Use DATE_TRUNC semanal e DISTINCT.",
+    "rubric_summary": "Correção do grain semanal, distinct, filtro PJ, legibilidade."
+  }
+}
