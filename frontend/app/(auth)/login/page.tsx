@@ -25,6 +25,7 @@ export default function LoginPage() {
     try {
       const { getSupabase } = await import("@/lib/supabase");
       const supabase = getSupabase();
+      if (!supabase) { setError("Supabase não configurado."); return; }
       const { error: signErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signErr) {
         setError(signErr.message);

@@ -10,6 +10,7 @@ export async function getAuthToken(): Promise<string | null> {
   try {
     const { getSupabase } = await import("@/lib/supabase");
     const supabase = getSupabase();
+    if (!supabase) return null;
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
   } catch {
