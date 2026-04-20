@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSupabase } from "@/lib/supabase";
+import { DEV_SKIP_AUTH } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,11 +12,18 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (DEV_SKIP_AUTH) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
+      const { getSupabase } = await import("@/lib/supabase");
       const supabase = getSupabase();
       const { error: signErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signErr) {
@@ -32,12 +39,16 @@ export default function LoginPage() {
     }
   }
 
+  if (DEV_SKIP_AUTH) {
+    return <p className="p-8 text-slate-400">Redirecionando para o painel…</p>;
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-6">
       <div>
         <h1 className="text-2xl font-semibold">Entrar</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Use a conta criada no Supabase (Auth). Depois complete o onboarding na API.
+          Use a conta criada no Supabase (Auth).
         </p>
       </div>
       <form className="flex flex-col gap-4" onSubmit={onSubmit}>
