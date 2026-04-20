@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Lesson, Student, StudentLessonProgress
+from app.services.student_service import ensure_all_lesson_progress
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ def _prereqs_met(
 
 def refresh_unlocks_for_student(db: Session, student_id: uuid.UUID) -> int:
     """Set 'available' for lessons whose prereqs are satisfied. Returns count changed."""
+    ensure_all_lesson_progress(db, student_id)
     lessons = db.execute(select(Lesson).where(Lesson.is_active == True)).scalars().all()  # noqa: E712
     changed = 0
     for lesson in lessons:

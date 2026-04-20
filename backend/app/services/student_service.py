@@ -86,6 +86,29 @@ def unlock_starting_lessons(db: Session, student_id: uuid.UUID) -> None:
     db.commit()
 
 
+def ensure_all_lesson_progress(db: Session, student_id: uuid.UUID) -> None:
+    """Garante uma linha de progresso por aula ativa (ex.: após novo seed). Desbloqueia nível 0 inicial."""
+    lesson_ids = db.execute(select(Lesson.id).where(Lesson.is_active == True)).scalars().all()  # noqa: E712
+    for lid in lesson_ids:
+        exists = db.execute(
+            select(StudentLessonProgress.id).where(
+                StudentLessonProgress.student_id == student_id,
+                StudentLessonProgress.lesson_id == lid,
+            )
+        ).first()
+        if exists:
+            continue
+        db.add(
+            StudentLessonProgress(
+                student_id=student_id,
+                lesson_id=lid,
+                status="locked",
+            )
+        )
+    db.commit()
+    unlock_starting_lessons(db, student_id)
+
+
 def touch_activity(db: Session, student: Student) -> None:
     """Update last_activity_at and recompute streak_days."""
     now = datetime.now(timezone.utc)

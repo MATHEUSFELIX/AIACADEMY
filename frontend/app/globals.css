@@ -5,3 +5,8 @@
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
+
+.app-shell {
+  background: radial-gradient(ellipse 90% 55% at 50% -15%, rgba(79, 70, 229, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 40% at 100% 10%, rgba(139, 92, 246, 0.06), transparent 45%), #020617;
+}

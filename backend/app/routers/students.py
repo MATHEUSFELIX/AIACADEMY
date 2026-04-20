@@ -93,7 +93,7 @@ def get_overview(
             & (StudentLessonProgress.student_id == student.id),
         )
         .where(
-            StudentLessonProgress.status == "available",
+            StudentLessonProgress.status.in_(("available", "in_progress")),
             Lesson.is_active == True,  # noqa: E712
         )
         .order_by(Lesson.level_number, Lesson.order_in_level)

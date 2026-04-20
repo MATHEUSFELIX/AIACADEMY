@@ -5,6 +5,7 @@ export interface StudentMe {
   profile: string | null;
   current_level: string;
   total_xp: number;
+  streak_days?: number;
   diagnostic_status: string;
   onboarding_done: boolean;
   stats: {
