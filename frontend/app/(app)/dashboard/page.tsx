@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch, ApiError, getAuthToken } from "@/lib/api";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Badge } from "@/components/ui/Badge";
 import type { StudentMe } from "@/lib/types";
 
 interface Overview {
@@ -64,9 +66,10 @@ export default function DashboardPage() {
           setLessons(ls.lessons);
         }
       } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof ApiError ? e.message : "Falha ao carregar painel.");
-        }
+        if (!cancelled)
+          setError(
+            e instanceof ApiError ? e.message : "Falha ao carregar painel.",
+          );
       }
     })();
     return () => {
@@ -87,121 +90,185 @@ export default function DashboardPage() {
 
   if (!overview || !me) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div className="h-10 w-56 animate-pulse rounded-lg bg-slate-800" />
         <div className="grid gap-4 lg:grid-cols-3">
-          <div className="h-28 animate-pulse rounded-xl bg-slate-800/90 lg:col-span-2" />
-          <div className="h-28 animate-pulse rounded-xl bg-slate-800/70" />
+          <div className="h-36 animate-pulse rounded-2xl bg-slate-800/80 lg:col-span-2" />
+          <div className="h-36 animate-pulse rounded-2xl bg-slate-800/60" />
         </div>
-        <div className="h-48 animate-pulse rounded-xl bg-slate-800/70" />
+        <div className="h-52 animate-pulse rounded-xl bg-slate-800/60" />
       </div>
     );
   }
 
+  const firstName = me.name ? me.name.split(" ")[0] : "";
   const levelLabel = overview.current_level.level.replace("level_", "Nível ");
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-fade-in">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-950 p-6 shadow-xl shadow-indigo-950/50 sm:p-8">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-indigo-600/15 blur-3xl" />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="relative overflow-hidden rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/90 via-slate-900 to-slate-950 p-6 shadow-xl shadow-indigo-950/60 sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-indigo-600/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-10 left-1/3 h-32 w-32 rounded-full bg-violet-600/10 blur-2xl" />
+
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300/90">Painel</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300/80">
+              Painel
+            </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              Olá{me.name ? `, ${me.name.split(" ")[0]}` : ""}
+              {firstName ? `Olá, ${firstName}` : "Olá"}
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">{overview.brainagent_message}</p>
+            {overview.brainagent_message && (
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+                {overview.brainagent_message}
+              </p>
+            )}
           </div>
+
           <div className="flex flex-wrap gap-3">
-            <StatPill label="XP total" value={me.total_xp ?? 0} accent="from-amber-500/20 to-amber-950/40" />
-            <StatPill label="Sequência" value={`${me.streak_days ?? 0} dias`} accent="from-emerald-500/15 to-emerald-950/30" />
-            <StatPill label={levelLabel} value={`${overview.current_level.lessons_done}/${overview.current_level.lessons_total}`} accent="from-violet-500/15 to-violet-950/35" />
+            <StatPill
+              label="XP total"
+              value={String(me.total_xp ?? 0)}
+              colorClass="from-amber-500/20 to-amber-950/40 border-amber-500/20"
+              textClass="text-amber-300"
+            />
+            <StatPill
+              label="Sequência"
+              value={`${me.streak_days ?? 0} dias`}
+              colorClass="from-emerald-500/15 to-emerald-950/30 border-emerald-500/20"
+              textClass="text-emerald-300"
+            />
+            <StatPill
+              label={levelLabel}
+              value={`${overview.current_level.lessons_done}/${overview.current_level.lessons_total}`}
+              colorClass="from-violet-500/15 to-violet-950/35 border-violet-500/20"
+              textClass="text-violet-300"
+            />
           </div>
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
-        {/* Progress + next */}
         <div className="flex flex-col gap-6 lg:col-span-2">
-          <section className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-5 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-slate-100">Progresso no nível</h2>
-              <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-400">
-                {overview.current_level.progress_pct}% completo
-              </span>
+          {/* Progress */}
+          <section className="rounded-xl border border-slate-700/70 bg-slate-900/50 p-5 shadow-md">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-slate-100">
+                Progresso — {levelLabel}
+              </h2>
             </div>
-            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-800">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width]"
-                style={{ width: `${Math.min(100, overview.current_level.progress_pct)}%` }}
-              />
-            </div>
+            <ProgressBar value={overview.current_level.progress_pct} />
             <p className="mt-3 text-sm text-slate-500">
-              {overview.current_level.lessons_done} de {overview.current_level.lessons_total} aulas concluídas neste nível.
+              {overview.current_level.lessons_done} de{" "}
+              {overview.current_level.lessons_total} aulas concluídas neste
+              nível
             </p>
           </section>
 
-          <section className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 to-slate-900/60 p-5 shadow-lg">
+          {/* Next lesson */}
+          <section className="rounded-xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 to-slate-900/60 p-5 shadow-md">
             <h2 className="text-base font-semibold text-white">Próxima aula</h2>
             {overview.next_lesson ? (
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-medium text-slate-100">{overview.next_lesson.title}</p>
+                  <p className="font-medium text-slate-100">
+                    {overview.next_lesson.title}
+                  </p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Nível {overview.next_lesson.level_number} · ~{overview.next_lesson.duration_min} min ·{" "}
+                    Nível {overview.next_lesson.level_number} · ~
+                    {overview.next_lesson.duration_min} min ·{" "}
                     {overview.next_lesson.xp_reward} XP
                   </p>
                 </div>
                 <Link
-                  className="inline-flex shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-500"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-500"
                   href={`/lesson/${overview.next_lesson.id}`}
                 >
                   Continuar
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
                 </Link>
               </div>
             ) : (
               <p className="mt-4 text-sm text-slate-500">
-                Nenhuma aula em aberto. Conclui o diagnóstico ou avança na trilha em{" "}
-                <Link className="font-medium text-indigo-400 underline" href="/lessons">
-                  Todas as aulas
+                Nenhuma aula em aberto. Conclua o diagnóstico ou acesse{" "}
+                <Link
+                  className="font-medium text-indigo-400 underline"
+                  href="/lessons"
+                >
+                  todas as aulas
                 </Link>
                 .
               </p>
             )}
           </section>
 
-          {overview.recent_activity && overview.recent_activity.length > 0 ? (
+          {/* Recent activity */}
+          {overview.recent_activity && overview.recent_activity.length > 0 && (
             <section className="rounded-xl border border-slate-700/70 bg-slate-900/40 p-5">
-              <h2 className="text-base font-semibold text-slate-100">Atividade recente</h2>
-              <ul className="mt-4 space-y-3">
-                {overview.recent_activity.map((r) => (
-                  <li
-                    className="flex items-center justify-between gap-3 border-b border-slate-800/80 pb-3 last:border-0 last:pb-0"
-                    key={r.lesson_id}
-                  >
-                    <span className="text-sm text-slate-300">{r.title}</span>
-                    <span className="shrink-0 text-xs text-slate-500">
-                      {r.score != null ? `${Math.round(r.score * 100)}%` : "—"}
-                    </span>
-                  </li>
-                ))}
+              <h2 className="mb-4 text-base font-semibold text-slate-100">
+                Atividade recente
+              </h2>
+              <ul className="divide-y divide-slate-800/80">
+                {overview.recent_activity.map((r) => {
+                  const scorePct =
+                    r.score != null ? Math.round(r.score * 100) : null;
+                  const status =
+                    scorePct != null && scorePct >= 75
+                      ? "completed"
+                      : scorePct != null
+                        ? "in_progress"
+                        : "available";
+                  return (
+                    <li
+                      className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                      key={r.lesson_id}
+                    >
+                      <span className="text-sm text-slate-300">{r.title}</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {scorePct != null && (
+                          <span className="text-xs tabular-nums text-slate-500">
+                            {scorePct}%
+                          </span>
+                        )}
+                        <Badge status={status} />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
-          ) : null}
+          )}
         </div>
 
         {/* Lesson strip */}
         <aside className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Trilha</h2>
-            <Link className="text-xs font-medium text-indigo-400 hover:text-indigo-300" href="/lessons">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Trilha
+            </h2>
+            <Link
+              className="text-xs font-medium text-indigo-400 hover:text-indigo-300"
+              href="/lessons"
+            >
               Ver tudo
             </Link>
           </div>
-          <div className="flex max-h-[min(28rem,70vh)] flex-col gap-2 overflow-y-auto rounded-xl border border-slate-700/60 bg-slate-950/40 p-3">
+          <div className="flex max-h-[min(30rem,70vh)] flex-col gap-1.5 overflow-y-auto rounded-xl border border-slate-700/60 bg-slate-950/40 p-2">
             {lessons.map((l) => (
-              <LessonStrip key={l.id} lesson={l} />
+              <LessonStripItem key={l.id} lesson={l} />
             ))}
           </div>
         </aside>
@@ -213,41 +280,69 @@ export default function DashboardPage() {
 function StatPill({
   label,
   value,
-  accent,
+  colorClass,
+  textClass,
 }: {
   label: string;
-  value: string | number;
-  accent: string;
+  value: string;
+  colorClass: string;
+  textClass: string;
 }) {
   return (
     <div
-      className={`rounded-xl border border-white/10 bg-gradient-to-br px-4 py-3 shadow-inner ${accent}`}
+      className={`rounded-xl border bg-gradient-to-br px-4 py-3 shadow-inner ${colorClass}`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-white">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-1 text-lg font-semibold tabular-nums ${textClass}`}>
+        {value}
+      </p>
     </div>
   );
 }
 
-function LessonStrip({ lesson: l }: { lesson: LessonRow }) {
+function LessonStripItem({ lesson: l }: { lesson: LessonRow }) {
   const locked = l.status === "locked";
   const done = l.status === "completed";
-  const dot =
-    done ? "bg-emerald-400" : locked ? "bg-slate-600" : "bg-indigo-400 shadow-[0_0_10px_rgba(129,140,248,0.6)]";
+
+  const dotClass = done
+    ? "bg-emerald-400"
+    : locked
+      ? "bg-slate-700"
+      : "bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]";
 
   const row = (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition hover:bg-slate-800/50">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} />
+    <div className="flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition hover:bg-slate-800/60">
+      <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm ${locked ? "text-slate-500" : "font-medium text-slate-200"}`}>{l.title}</p>
-        <p className="text-xs text-slate-600">Nv. {l.level_number} · {l.xp_reward} XP</p>
+        <p
+          className={`truncate text-sm ${locked ? "text-slate-600" : "font-medium text-slate-200"}`}
+        >
+          {l.title}
+        </p>
+        <p className="text-xs text-slate-600">
+          Nv. {l.level_number} · {l.xp_reward} XP
+        </p>
       </div>
+      {done && (
+        <svg
+          className="h-3.5 w-3.5 shrink-0 text-emerald-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+      )}
     </div>
   );
 
-  if (locked) {
-    return <div>{row}</div>;
-  }
-
+  if (locked) return <div>{row}</div>;
   return <Link href={`/lesson/${l.id}`}>{row}</Link>;
 }

@@ -3,11 +3,19 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, ApiError, getAuthToken } from "@/lib/api";
+import { StepperBar } from "@/components/ui/StepperBar";
+import { HookSection } from "@/components/lesson/HookSection";
+import { WidgetSection } from "@/components/lesson/WidgetSection";
+import { KbSection } from "@/components/lesson/KbSection";
+import { ExerciseSection } from "@/components/lesson/ExerciseSection";
 
 interface LessonDetail {
   id: string;
   title: string;
   subtitle: string | null;
+  level_number?: number;
+  xp_reward?: number;
+  duration_min?: number;
   hook_config: Record<string, unknown>;
   widget_config: Record<string, unknown>;
   kb_content: Record<string, unknown>;
@@ -15,25 +23,19 @@ interface LessonDetail {
 
 type Step = "hook" | "widget" | "kb" | "exercise";
 
-const STEP_ORDER: Step[] = ["hook", "widget", "kb", "exercise"];
-
-const STEP_LABELS: Record<Step, string> = {
-  hook: "1. Hook",
-  widget: "2. Widget",
-  kb: "3. KB",
-  exercise: "4. Exercício",
-};
-
-function stepIndex(s: Step): number {
-  return STEP_ORDER.indexOf(s);
-}
+const STEPS: { key: Step; label: string }[] = [
+  { key: "hook", label: "Hook" },
+  { key: "widget", label: "Widget" },
+  { key: "kb", label: "KB" },
+  { key: "exercise", label: "Exercício" },
+];
 
 export default function LessonPage() {
   const params = useParams();
   const id = String(params.id);
+
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [step, setStep] = useState<Step>("hook");
-  /** Índice 0–3: etapas com tab clicável (e anteriores). */
   const [unlockedMax, setUnlockedMax] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,9 +45,7 @@ export default function LessonPage() {
       const raw = sessionStorage.getItem(key);
       if (raw !== null) {
         const n = parseInt(raw, 10);
-        if (!Number.isNaN(n) && n >= 0 && n <= 3) {
-          setUnlockedMax(n);
-        }
+        if (!Number.isNaN(n) && n >= 0 && n <= 3) setUnlockedMax(n);
       }
     } catch {
       /* ignore */
@@ -71,13 +71,10 @@ export default function LessonPage() {
         }
         const json = await apiFetch<LessonDetail>(`/lessons/${id}`, token);
         await apiFetch(`/lessons/${id}/start`, token, { method: "POST" });
-        if (!cancelled) {
-          setLesson(json);
-        }
+        if (!cancelled) setLesson(json);
       } catch (e) {
-        if (!cancelled) {
+        if (!cancelled)
           setError(e instanceof ApiError ? e.message : "Erro ao carregar aula.");
-        }
       }
     })();
     return () => {
@@ -85,279 +82,86 @@ export default function LessonPage() {
     };
   }, [id]);
 
-  function goToStep(s: Step) {
-    setStep(s);
-  }
-
-  function unlockThrough(targetIndex: number) {
-    setUnlockedMax((u) => Math.max(u, targetIndex));
+  function unlock(targetIdx: number) {
+    setUnlockedMax((u) => Math.max(u, targetIdx));
   }
 
   function completeHook() {
-    unlockThrough(1);
-    goToStep("widget");
+    unlock(1);
+    setStep("widget");
   }
-
   function completeWidget() {
-    unlockThrough(2);
-    goToStep("kb");
+    unlock(2);
+    setStep("kb");
   }
-
   function completeKb() {
-    unlockThrough(3);
-    goToStep("exercise");
+    unlock(3);
+    setStep("exercise");
   }
 
   if (error) {
-    return <p className="text-red-400">{error}</p>;
+    return (
+      <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-4 py-3 text-red-300">
+        {error}
+      </div>
+    );
   }
+
   if (!lesson) {
-    return <p className="text-slate-400">Carregando aula…</p>;
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="h-8 w-64 animate-pulse rounded-lg bg-slate-800" />
+        <div className="h-12 animate-pulse rounded-xl bg-slate-800/70" />
+        <div className="h-64 animate-pulse rounded-2xl bg-slate-800/50" />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-fade-in">
       <div>
-        <p className="text-sm uppercase tracking-wide text-slate-500">{lesson.id}</p>
-        <h1 className="mt-1 text-2xl font-semibold">{lesson.title}</h1>
-        {lesson.subtitle ? <p className="mt-2 text-slate-400">{lesson.subtitle}</p> : null}
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-400/80">
+          {lesson.level_number != null ? `Nível ${lesson.level_number}` : lesson.id}
+        </p>
+        <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">
+          {lesson.title}
+        </h1>
+        {lesson.subtitle && (
+          <p className="mt-2 text-slate-400">{lesson.subtitle}</p>
+        )}
+        {(lesson.duration_min || lesson.xp_reward) && (
+          <div className="mt-3 flex gap-3">
+            {lesson.duration_min && (
+              <span className="rounded-full bg-slate-800/80 px-2.5 py-1 text-xs text-slate-400">
+                ~{lesson.duration_min} min
+              </span>
+            )}
+            {lesson.xp_reward && (
+              <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
+                {lesson.xp_reward} XP
+              </span>
+            )}
+          </div>
+        )}
       </div>
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Etapas da aula">
-        {STEP_ORDER.map((s) => {
-          const idx = stepIndex(s);
-          const active = step === s;
-          const locked = idx > unlockedMax;
-          return (
-            <button
-              aria-current={active ? "true" : undefined}
-              aria-disabled={locked}
-              className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                locked
-                  ? "cursor-not-allowed bg-slate-900 text-slate-600 ring-1 ring-slate-800"
-                  : active
-                    ? "bg-indigo-600 text-white"
-                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }`}
-              key={s}
-              disabled={locked}
-              onClick={() => {
-                if (!locked) {
-                  goToStep(s);
-                }
-              }}
-              title={locked ? "Conclua a etapa anterior para desbloquear" : undefined}
-              type="button"
-            >
-              {STEP_LABELS[s]}
-            </button>
-          );
-        })}
-      </div>
-      {step === "hook" ? (
+
+      <StepperBar
+        steps={STEPS}
+        current={step}
+        unlockedMax={unlockedMax}
+        onChange={(k) => setStep(k as Step)}
+      />
+
+      {step === "hook" && (
         <HookSection config={lesson.hook_config} onContinue={completeHook} />
-      ) : step === "widget" ? (
+      )}
+      {step === "widget" && (
         <WidgetSection config={lesson.widget_config} onContinue={completeWidget} />
-      ) : step === "kb" ? (
+      )}
+      {step === "kb" && (
         <KbSection content={lesson.kb_content} onContinue={completeKb} />
-      ) : (
-        <ExerciseSection lessonId={lesson.id} />
       )}
+      {step === "exercise" && <ExerciseSection lessonId={lesson.id} />}
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="text-lg font-medium">{title}</h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  );
-}
-
-function HookSection({
-  config,
-  onContinue,
-}: {
-  config: Record<string, unknown>;
-  onContinue: () => void;
-}) {
-  const scenes = (config.scenes as { text?: string; sub?: string }[] | undefined) || [];
-  return (
-    <Section title="Hook — cenário">
-      <ul className="space-y-4">
-        {scenes.map((s, i) => (
-          <li className="rounded-lg border border-slate-800 bg-slate-950/50 p-4" key={i}>
-            {s.sub ? <p className="text-xs uppercase text-slate-500">{s.sub}</p> : null}
-            <p className="mt-2 text-slate-200">{s.text}</p>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-8 border-t border-slate-800 pt-6">
-        <button
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
-          onClick={onContinue}
-          type="button"
-        >
-          Continuar
-        </button>
-        <p className="mt-3 text-xs text-slate-500">
-          Ao continuar, o widget abre automaticamente na próxima etapa.
-        </p>
-      </div>
-    </Section>
-  );
-}
-
-function WidgetSection({
-  config,
-  onContinue,
-}: {
-  config: Record<string, unknown>;
-  onContinue: () => void;
-}) {
-  const reveal = config.reveal_button as { label?: string } | undefined;
-  return (
-    <Section title="Widget interativo">
-      <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-300">
-        {JSON.stringify(config, null, 2)}
-      </pre>
-      {reveal?.label ? (
-        <p className="mt-4 text-xs text-slate-500">
-          Interaja com o cenário acima quando fizer sentido (ex.: &quot;{reveal.label}&quot;).
-        </p>
-      ) : null}
-      <div className="mt-8 border-t border-slate-800 pt-6">
-        <button
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
-          onClick={onContinue}
-          type="button"
-        >
-          Continuar para a KB
-        </button>
-      </div>
-    </Section>
-  );
-}
-
-function KbSection({
-  content,
-  onContinue,
-}: {
-  content: Record<string, unknown>;
-  onContinue: () => void;
-}) {
-  return (
-    <Section title="Knowledge base">
-      <pre className="overflow-x-auto rounded-lg bg-slate-900 p-4 text-xs text-slate-300">
-        {JSON.stringify(content, null, 2)}
-      </pre>
-      <div className="mt-8 border-t border-slate-800 pt-6">
-        <button
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-500"
-          onClick={onContinue}
-          type="button"
-        >
-          Continuar para o exercício
-        </button>
-      </div>
-    </Section>
-  );
-}
-
-function ExerciseSection({ lessonId }: { lessonId: string }) {
-  const [loading, setLoading] = useState(false);
-  const [question, setQuestion] = useState<string | null>(null);
-  const [context, setContext] = useState<string | null>(null);
-  const [exerciseId, setExerciseId] = useState<string | null>(null);
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  async function generate() {
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        return;
-      }
-      const res = await apiFetch<{
-        exercise_id: string;
-        question: string;
-        context: string;
-      }>(`/lessons/${lessonId}/exercise/generate`, token, { method: "POST" });
-      setExerciseId(res.exercise_id);
-      setQuestion(res.question);
-      setContext(res.context);
-    } catch (e) {
-      setFeedback(e instanceof Error ? e.message : "Erro");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function submit() {
-    if (!exerciseId) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        return;
-      }
-      const res = await apiFetch<{ feedback: string }>(`/lessons/${lessonId}/exercise/submit`, token, {
-        method: "POST",
-        body: JSON.stringify({
-          exercise_id: exerciseId,
-          answer,
-          used_hint: false,
-        }),
-      });
-      setFeedback(res.feedback);
-    } catch (e) {
-      setFeedback(e instanceof Error ? e.message : "Erro ao enviar");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Section title="Exercício">
-      {!question ? (
-        <button
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-          disabled={loading}
-          onClick={generate}
-          type="button"
-        >
-          {loading ? "Gerando…" : "Gerar exercício (BrainAgent)"}
-        </button>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {context ? <p className="text-sm text-slate-400">{context}</p> : null}
-          <p className="text-slate-100">{question}</p>
-          <textarea
-            className="min-h-[120px] rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-            placeholder="Sua resposta…"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-          />
-          <button
-            className="w-fit rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-            disabled={loading}
-            onClick={submit}
-            type="button"
-          >
-            Enviar para avaliação
-          </button>
-        </div>
-      )}
-      {feedback ? (
-        <p className="mt-4 whitespace-pre-wrap rounded-lg border border-slate-700 bg-slate-950 p-4 text-sm text-slate-200">
-          {feedback}
-        </p>
-      ) : null}
-    </Section>
   );
 }
