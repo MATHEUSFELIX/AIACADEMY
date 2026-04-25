@@ -10,3 +10,41 @@ body {
   background: radial-gradient(ellipse 90% 55% at 50% -15%, rgba(79, 70, 229, 0.14), transparent 55%),
     radial-gradient(ellipse 70% 40% at 100% 10%, rgba(139, 92, 246, 0.06), transparent 45%), #020617;
 }
+
+/* Range input thumb */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: rgb(99 102 241);
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+  transition: box-shadow 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.3);
+}
+input[type="range"]::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: rgb(99 102 241);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(30 41 59);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(30 41 59);
+}
