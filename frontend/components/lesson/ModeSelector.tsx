@@ -48,7 +48,7 @@ export default function ModeSelector({
         setLoadError("Sessao expirada. Faça login novamente para carregar os modos.")
         return
       }
-      const res = await fetch(`${API}/api/lessons/${lessonId}/modes`, {
+      const res = await fetch(`${API}/lessons/${lessonId}/modes`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
@@ -76,7 +76,7 @@ export default function ModeSelector({
       if (!token) {
         return
       }
-      const res = await fetch(`${API}/api/lessons/${lessonId}/recommend-mode`, {
+      const res = await fetch(`${API}/lessons/${lessonId}/recommend-mode`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
