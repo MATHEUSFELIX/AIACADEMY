@@ -49,6 +49,89 @@ class ExerciseSubmitIn(BaseModel):
     exercise_id: uuid.UUID
     answer: str = Field(..., min_length=1)
     used_hint: bool = False
+    brainagent_mode: str = Field(default="guided", max_length=32)
+
+
+LESSON_MODES: list[dict[str, str]] = [
+    {
+        "mode": "guided",
+        "name": "Guiado",
+        "description": "Resolucao passo a passo com foco no raciocinio correto.",
+        "emoji": "BA",
+        "icon": "guide",
+    },
+    {
+        "mode": "socratic",
+        "name": "Socratico",
+        "description": "Perguntas direcionadas para testar hipoteses antes da resposta final.",
+        "emoji": "?",
+        "icon": "ask",
+    },
+    {
+        "mode": "competitive",
+        "name": "Competitivo",
+        "description": "Compare sua solucao com um baseline do BrainAgent.",
+        "emoji": "VS",
+        "icon": "vs",
+    },
+    {
+        "mode": "streaming",
+        "name": "Raciocinio aberto",
+        "description": "Feedback explicita os passos de avaliacao do BrainAgent.",
+        "emoji": "AI",
+        "icon": "flow",
+    },
+    {
+        "mode": "inner_monologue",
+        "name": "Autonomia",
+        "description": "Menos pistas e avaliacao de independencia na resolucao.",
+        "emoji": "GO",
+        "icon": "solo",
+    },
+    {
+        "mode": "progressive",
+        "name": "Progressivo",
+        "description": "Consolida fundamentos antes de liberar desafios maiores.",
+        "emoji": "UP",
+        "icon": "level",
+    },
+]
+
+SUPPORTED_LESSON_MODES = {mode["mode"] for mode in LESSON_MODES}
+
+
+def _mode_result_for(mode: str, composite: float) -> dict[str, Any]:
+    if mode == "competitive":
+        agent_score = 0.78
+        return {
+            "winner": "student" if composite >= agent_score else "brainagent",
+            "student_score": round(composite, 2),
+            "agent_score": agent_score,
+        }
+    if mode == "socratic":
+        return {
+            "next_question": (
+                "Qual suposicao precisa estar verdadeira para sua conclusao causal se sustentar?"
+                if composite < 0.75
+                else "Como voce explicaria esta decisao para um diretor nao tecnico?"
+            )
+        }
+    if mode == "streaming":
+        return {
+            "streaming_thoughts": (
+                "Avaliei tecnica, metodologia, antipadroes e interpretacao antes do score composto."
+            )
+        }
+    if mode == "inner_monologue":
+        return {
+            "hints_used": 0,
+            "independence_level": "alta" if composite >= 0.75 else "precisa de scaffold",
+        }
+    if mode == "progressive":
+        return {
+            "next_unlocked_modes": ["competitive", "inner_monologue"] if composite >= 0.75 else ["guided"],
+        }
+    return {"summary": "Feedback guiado concluido pelo BrainAgent."}
 
 
 def _lesson_public(
@@ -68,6 +151,53 @@ def _lesson_public(
         "prerequisites": list(lesson.prerequisites or []),
         "kb_confidence": float(lesson.kb_confidence),
     }
+
+
+@router.get("/{lesson_id}/modes")
+def get_lesson_modes(
+    lesson_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    student: Annotated[Student, Depends(get_current_student)],
+) -> dict:
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson or not lesson_is_accessible(db, student.id, lesson_id):
+        raise HTTPException(status_code=403, detail="LESSON_LOCKED")
+
+    return {"data": {"modes": LESSON_MODES}}
+
+
+@router.post("/{lesson_id}/recommend-mode")
+def recommend_lesson_mode(
+    lesson_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    student: Annotated[Student, Depends(get_current_student)],
+) -> dict:
+    lesson = db.get(Lesson, lesson_id)
+    if not lesson or not lesson_is_accessible(db, student.id, lesson_id):
+        raise HTTPException(status_code=403, detail="LESSON_LOCKED")
+
+    completed_scores = db.execute(
+        select(StudentLessonProgress.score_composite)
+        .where(
+            StudentLessonProgress.student_id == student.id,
+            StudentLessonProgress.status == "completed",
+        )
+        .limit(20)
+    ).scalars().all()
+    scores = [float(score) for score in completed_scores if score is not None]
+    avg_score = sum(scores) / len(scores) if scores else None
+
+    if avg_score is not None and avg_score >= 0.85:
+        mode = "competitive"
+        reason = "Seu historico permite um desafio com comparacao contra baseline do BrainAgent."
+    elif avg_score is not None and avg_score < 0.65:
+        mode = "guided"
+        reason = "O modo guiado reduz risco de travar e reforca o raciocinio passo a passo."
+    else:
+        mode = "socratic"
+        reason = "Perguntas direcionadas ajudam a validar suposicoes antes da resposta final."
+
+    return {"data": {"recommended_mode": mode, "reason": reason}}
 
 
 @router.get("")
@@ -242,6 +372,7 @@ def submit_exercise(
     if not pending or pending.get("student_id") != str(student.id) or pending.get("lesson_id") != lesson_id:
         raise HTTPException(status_code=404, detail="Invalid exercise_id")
 
+    mode = body.brainagent_mode if body.brainagent_mode in SUPPORTED_LESSON_MODES else "guided"
     lesson = db.get(Lesson, lesson_id)
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found")
@@ -395,6 +526,8 @@ def submit_exercise(
             "interpretation": inter,
             "composite": composite,
         },
+        "mode": mode,
+        "mode_result": _mode_result_for(mode, composite),
         "feedback": feedback,
         "xp_earned": xp,
         "lesson_completed": lesson_completed,
