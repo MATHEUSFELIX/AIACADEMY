@@ -44,11 +44,96 @@ from app.services.unlock_service import (
 
 router = APIRouter(prefix="/lessons")
 
+BRAINAGENT_MODES: tuple[dict[str, str], ...] = (
+    {
+        "mode": "moment_gated",
+        "name": "Ajuda no Momento Certo",
+        "description": "O BrainAgent intervem apenas nos pontos de maior risco conceitual.",
+        "emoji": "🎯",
+        "icon": "GATE",
+    },
+    {
+        "mode": "socratic",
+        "name": "Socratico",
+        "description": "Resolucao guiada por perguntas curtas antes do feedback final.",
+        "emoji": "💬",
+        "icon": "SOCR",
+    },
+    {
+        "mode": "inner_monologue",
+        "name": "Monologo Interno",
+        "description": "Estimula o aluno a explicitar hipoteses, trade-offs e criterio de decisao.",
+        "emoji": "🧠",
+        "icon": "MIND",
+    },
+    {
+        "mode": "progressive",
+        "name": "Progressivo",
+        "description": "Comeca com mais estrutura e libera modos mais autonomos conforme o desempenho.",
+        "emoji": "📈",
+        "icon": "PROG",
+    },
+    {
+        "mode": "competitive",
+        "name": "Competitivo",
+        "description": "Compara sua resposta com uma solucao de referencia do BrainAgent.",
+        "emoji": "⚔️",
+        "icon": "DUEL",
+    },
+    {
+        "mode": "streaming",
+        "name": "Raciocinio em Fluxo",
+        "description": "Feedback em formato de trilha de raciocinio para revisar cada decisao.",
+        "emoji": "🌊",
+        "icon": "FLOW",
+    },
+)
+
+_BRAINAGENT_MODE_KEYS = {mode["mode"] for mode in BRAINAGENT_MODES}
+
+
+class ExerciseGenerateIn(BaseModel):
+    brainagent_mode: str | None = None
+
 
 class ExerciseSubmitIn(BaseModel):
     exercise_id: uuid.UUID
     answer: str = Field(..., min_length=1)
     used_hint: bool = False
+    brainagent_mode: str | None = None
+
+
+def _normalize_brainagent_mode(mode: str | None) -> str:
+    if mode in _BRAINAGENT_MODE_KEYS:
+        return mode
+    return "moment_gated"
+
+
+def _mode_result(mode: str, composite: float, used_hint: bool) -> dict[str, Any]:
+    if mode == "competitive":
+        agent_score = min(1.0, composite + 0.08)
+        return {
+            "winner": "student" if composite >= agent_score else "brainagent",
+            "student_score": round(composite, 2),
+            "agent_score": round(agent_score, 2),
+        }
+    if mode == "socratic":
+        return {"next_question": "Qual hipotese da sua resposta mais mudaria a decisao de negocio?"}
+    if mode == "streaming":
+        return {"streaming_thoughts": "Contexto -> hipotese -> calculo -> interpretacao -> decisao."}
+    if mode == "inner_monologue":
+        return {
+            "hints_used": 1 if used_hint else 0,
+            "independence_level": "alta" if composite >= 0.75 and not used_hint else "em desenvolvimento",
+        }
+    if mode == "progressive":
+        return {
+            "next_unlocked_modes": ["socratic", "inner_monologue"] if composite >= 0.75 else [],
+        }
+    return {
+        "intervention_moment": "after_submission",
+        "independence_level": "alta" if composite >= 0.75 else "precisa de reforco",
+    }
 
 
 def _lesson_public(
@@ -103,6 +188,37 @@ def list_lessons(
         out.append(row)
 
     return {"lessons": out, "total": int(total_db or 0)}
+
+
+@router.get("/{lesson_id}/modes")
+def lesson_modes(
+    lesson_id: str,
+    student: Annotated[Student, Depends(get_current_student)],
+) -> dict:
+    del lesson_id, student
+    return {"modes": [dict(mode) for mode in BRAINAGENT_MODES]}
+
+
+@router.post("/{lesson_id}/recommend-mode")
+def recommend_lesson_mode(
+    lesson_id: str,
+    student: Annotated[Student, Depends(get_current_student)],
+) -> dict:
+    del lesson_id
+    if student.current_level in ("level_0", "level_1"):
+        recommended_mode = "progressive"
+        reason = "Seu nivel atual se beneficia de estrutura gradual antes de aumentar autonomia."
+    elif student.profile in ("strategy", "c_level"):
+        recommended_mode = "socratic"
+        reason = "Perguntas socraticas ajudam a conectar a tecnica com decisao executiva."
+    elif student.profile == "analytics":
+        recommended_mode = "moment_gated"
+        reason = "Este modo preserva autonomia analitica e intervem apenas quando houver risco conceitual."
+    else:
+        recommended_mode = "inner_monologue"
+        reason = "Explicitar hipoteses e criterios deixa o raciocinio mais verificavel."
+
+    return {"recommended_mode": recommended_mode, "reason": reason}
 
 
 @router.get("/{lesson_id}")
@@ -182,6 +298,7 @@ def generate_exercise(
     lesson_id: str,
     db: Annotated[Session, Depends(get_db)],
     student: Annotated[Student, Depends(get_current_student)],
+    body: ExerciseGenerateIn | None = None,
 ) -> dict:
     settings = get_settings()
     rate_limit_check(student.id, "brainagent", settings.brainagent_rate_limit_per_hour)
@@ -204,12 +321,14 @@ def generate_exercise(
     gen = generate_exercise_payload(lesson.title, base, student.profile, avg)
     eid = uuid.uuid4()
     variant = gen.get("variant", "padrao")
+    brainagent_mode = _normalize_brainagent_mode(body.brainagent_mode if body else None)
     pending_exercise_set(
         eid,
         {
             "student_id": str(student.id),
             "lesson_id": lesson_id,
             "variant": variant,
+            "brainagent_mode": brainagent_mode,
             "payload": gen,
         },
     )
@@ -225,6 +344,7 @@ def generate_exercise(
         "xp_if_no_hint": xp_base,
         "xp_if_hint": max(0, xp_base - 10),
         "rationale": gen.get("rationale", ""),
+        "brainagent_mode": brainagent_mode,
     }
 
 
@@ -266,6 +386,10 @@ def submit_exercise(
     xp_base = lesson.xp_reward
     xp = xp_base
     variant = pending.get("variant", "padrao")
+    pending_mode = pending.get("brainagent_mode")
+    brainagent_mode = _normalize_brainagent_mode(
+        body.brainagent_mode or (pending_mode if isinstance(pending_mode, str) else None)
+    )
 
     if body.used_hint:
         xp = max(0, xp_base - 10)
@@ -397,6 +521,8 @@ def submit_exercise(
         },
         "feedback": feedback,
         "xp_earned": xp,
+        "mode": brainagent_mode,
+        "mode_result": _mode_result(brainagent_mode, composite, body.used_hint),
         "lesson_completed": lesson_completed,
         "unlocked_lessons": [],
         "memory_updated": {
