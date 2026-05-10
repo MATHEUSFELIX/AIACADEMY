@@ -405,6 +405,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
       }
       const generated = await apiFetch<ExerciseGenerateResponse>(`/lessons/${lessonId}/exercise/generate`, token, {
         method: "POST",
+        body: JSON.stringify({ brainagent_mode: selectedMode }),
       });
       setExercise(generated);
       setAnswer("");
