@@ -1,137 +1,112 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-
-import { API, getAuthToken } from "@/lib/api"
+import { useState } from "react";
 
 interface Mode {
-  mode: string
-  name: string
-  description: string
-  emoji: string
-  icon: string
+  mode: string;
+  name: string;
+  description: string;
+  icon: string;
 }
 
 interface Recommendation {
-  recommended_mode: string
-  reason: string
+  recommended_mode: string;
+  reason: string;
 }
 
 interface ModeSelectorProps {
-  lessonId: string
-  studentId: string
-  onModeSelected: (mode: string) => void
-  isLoading?: boolean
+  lessonId: string;
+  studentId: string;
+  onModeSelected: (mode: string) => void;
+  isLoading?: boolean;
 }
 
+const LESSON_MODES: Mode[] = [
+  {
+    mode: "socratic",
+    name: "Socratico",
+    description: "BrainAgent conduz por perguntas curtas para testar suposicoes antes da resposta final.",
+    icon: "SO",
+  },
+  {
+    mode: "progressive",
+    name: "Progressivo",
+    description: "Comece com apoio estruturado e avance para autonomia conforme seu raciocinio estabiliza.",
+    icon: "PR",
+  },
+  {
+    mode: "competitive",
+    name: "Competitivo",
+    description: "Compare sua solucao com uma leitura alternativa do BrainAgent e defenda a melhor decisao.",
+    icon: "CP",
+  },
+  {
+    mode: "inner_monologue",
+    name: "Monologo interno",
+    description: "Registre o raciocinio passo a passo e deixe o BrainAgent apontar lacunas de independencia.",
+    icon: "MI",
+  },
+  {
+    mode: "moment_gated",
+    name: "Ajuda no momento certo",
+    description: "Use intervencoes pontuais quando travar, sem transformar a aula em resposta pronta.",
+    icon: "MG",
+  },
+  {
+    mode: "streaming",
+    name: "Raciocinio ao vivo",
+    description: "Construa a resposta incrementalmente, validando cada etapa com o tutor.",
+    icon: "ST",
+  },
+];
+
+const DEFAULT_RECOMMENDATION: Recommendation = {
+  recommended_mode: "socratic",
+  reason:
+    "Comece pelo modo socratico: ele preserva autonomia, testa premissas importantes e funciona bem para qualquer aula sem depender de endpoints adicionais.",
+};
+
 export default function ModeSelector({
-  lessonId,
+  lessonId: _lessonId,
   studentId: _studentId,
   onModeSelected,
   isLoading = false,
 }: ModeSelectorProps) {
-  void _studentId
-  const [modes, setModes] = useState<Mode[]>([])
-  const [selectedMode, setSelectedMode] = useState<string | null>(null)
-  const [showRecommendation, setShowRecommendation] = useState(false)
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
-  const [loadingRecommendation, setLoadingRecommendation] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  void _lessonId;
+  void _studentId;
 
-  const selectedModeData = modes.find((mode) => mode.mode === selectedMode) ?? null
+  const [selectedMode, setSelectedMode] = useState<string | null>(null);
+  const [showRecommendation, setShowRecommendation] = useState(false);
+  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
 
-  const loadModes = useCallback(async (): Promise<void> => {
-    try {
-      const token = await getAuthToken()
-      if (!token) {
-        setLoadError("Sessao expirada. Faça login novamente para carregar os modos.")
-        return
-      }
-      const res = await fetch(`${API}/api/lessons/${lessonId}/modes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
-        setLoadError("Nao foi possivel carregar os modos agora.")
-        return
-      }
-      const data = await res.json()
-      if (data.data?.modes) {
-        setModes(data.data.modes)
-      }
-      setLoadError(null)
-    } catch {
-      setLoadError("Nao foi possivel carregar os modos agora.")
-    }
-  }, [lessonId])
+  const selectedModeData = LESSON_MODES.find((mode) => mode.mode === selectedMode) ?? null;
 
-  useEffect(() => {
-    void loadModes()
-  }, [loadModes])
-
-  const requestRecommendation = async (): Promise<void> => {
-    setLoadingRecommendation(true)
-    try {
-      const token = await getAuthToken()
-      if (!token) {
-        return
-      }
-      const res = await fetch(`${API}/api/lessons/${lessonId}/recommend-mode`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (!res.ok) {
-        return
-      }
-      const data = await res.json()
-      if (data.data) {
-        setRecommendation(data.data)
-        setShowRecommendation(true)
-      }
-    } catch {
-      // Ignore and keep mode cards available for manual selection.
-    }
-    setLoadingRecommendation(false)
+  function requestRecommendation(): void {
+    setRecommendation(DEFAULT_RECOMMENDATION);
+    setShowRecommendation(true);
   }
 
-  const handleModeSelection = (mode: string) => {
-    setSelectedMode(mode)
-    setShowRecommendation(false)
-    onModeSelected(mode)
-  }
-
-  if (modes.length === 0) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-6 text-center">
-        <p className="text-sm text-slate-400">{loadError ?? "Carregando modos do BrainAgent..."}</p>
-      </div>
-    )
+  function handleModeSelection(mode: string): void {
+    setSelectedMode(mode);
+    setShowRecommendation(false);
+    onModeSelected(mode);
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_14px_50px_-30px_rgba(0,200,150,0.9)]">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
+    <div className="mx-auto w-full max-w-5xl rounded-2xl border border-slate-800 bg-slate-950/60 p-6 shadow-[0_14px_50px_-30px_rgba(0,200,150,0.9)]">
+      <div className="mb-8">
         <p className="text-[11px] uppercase tracking-[0.22em] text-cyan-400/80">BrainAgent Studio</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">Como voce quer aprender esta aula?</h2>
         <p className="mt-2 text-sm text-slate-400">
-          Escolha um modo manualmente ou peça recomendacao adaptativa ao BrainAgent.
+          Escolha um modo manualmente ou peca uma recomendacao conservadora do BrainAgent.
         </p>
-      </motion.div>
+      </div>
 
       <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {modes.map((mode, idx) => (
-          <motion.button
+        {LESSON_MODES.map((mode) => (
+          <button
             key={mode.mode}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.07 }}
+            type="button"
             onClick={() => handleModeSelection(mode.mode)}
             className={`group relative overflow-hidden rounded-xl border p-5 text-left transition-all ${
               selectedMode === mode.mode
@@ -143,122 +118,108 @@ export default function ModeSelector({
 
             <div className="relative z-10">
               <div className="mb-3 flex items-center justify-between">
-                <div className="text-3xl">{mode.emoji || "🧠"}</div>
+                <div className="rounded-xl border border-slate-700 bg-slate-950/90 px-2.5 py-2 font-mono text-sm text-cyan-200">
+                  {mode.icon}
+                </div>
                 <span className="rounded-full border border-slate-700 bg-slate-950/90 px-2 py-1 text-[10px] uppercase tracking-wider text-slate-400">
-                  {mode.icon || mode.mode}
+                  {mode.mode}
                 </span>
               </div>
               <h3 className="mb-2 text-base font-semibold text-slate-100">{mode.name}</h3>
               <p className="text-sm leading-snug text-slate-400">{mode.description}</p>
             </div>
 
-            {selectedMode === mode.mode && (
-              <motion.div
-                layoutId="mode-selected-pill"
-                className="relative z-10 mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/50 bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-200"
-              >
+            {selectedMode === mode.mode ? (
+              <div className="relative z-10 mt-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/50 bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
                 Modo selecionado
-              </motion.div>
-            )}
-          </motion.button>
+              </div>
+            ) : null}
+          </button>
         ))}
       </div>
 
-      <AnimatePresence mode="wait">
-        {!showRecommendation ? (
-          <motion.div
-            key="ask-recommendation"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mb-6 flex flex-col items-center gap-2"
+      {!showRecommendation ? (
+        <div className="mb-6 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={requestRecommendation}
+            disabled={isLoading}
+            className="rounded-lg border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-6 py-3 text-sm font-semibold text-cyan-100 transition hover:from-cyan-500/30 hover:to-indigo-500/30 disabled:opacity-50"
           >
+            Nao sei qual modo escolher
+          </button>
+          <p className="text-xs text-slate-500">
+            A recomendacao usa um padrao seguro localmente para manter a aula disponivel.
+          </p>
+        </div>
+      ) : null}
+
+      {showRecommendation && recommendation ? (
+        <div className="mb-6 rounded-xl border border-cyan-700/50 bg-gradient-to-br from-cyan-950/40 to-slate-900 p-5">
+          <div className="flex items-start gap-4">
+            <span className="rounded-xl border border-cyan-700/40 bg-cyan-950/50 px-2.5 py-2 font-mono text-sm text-cyan-100">
+              BA
+            </span>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-cyan-100">Recomendacao do BrainAgent</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-300">{recommendation.reason}</p>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleModeSelection(recommendation.recommended_mode)}
+                  className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+                >
+                  Aplicar {recommendation.recommended_mode}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRecommendation(false)}
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                >
+                  Ver todos os modos
+                </button>
+              </div>
+            </div>
             <button
-              onClick={requestRecommendation}
-              disabled={loadingRecommendation || isLoading}
-              className="rounded-lg border border-cyan-500/40 bg-gradient-to-r from-cyan-500/20 to-indigo-500/20 px-6 py-3 text-sm font-semibold text-cyan-100 transition hover:from-cyan-500/30 hover:to-indigo-500/30 disabled:opacity-50"
+              type="button"
+              onClick={() => setShowRecommendation(false)}
+              className="text-xl text-slate-500 transition hover:text-slate-300"
+              aria-label="Fechar recomendacao"
             >
-              {loadingRecommendation ? "BrainAgent analisando..." : "Nao sei qual modo escolher"}
+              x
             </button>
-            <p className="text-xs text-slate-500">
-              O BrainAgent usa seu historico para recomendar o melhor modo desta etapa.
-            </p>
-          </motion.div>
-        ) : null}
+          </div>
+        </div>
+      ) : null}
 
-        {showRecommendation && recommendation ? (
-          <motion.div
-            key="show-recommendation"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mb-6 rounded-xl border border-cyan-700/50 bg-gradient-to-br from-cyan-950/40 to-slate-900 p-5"
-          >
-            <div className="flex items-start gap-4">
-              <span className="text-3xl">🧠</span>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-cyan-100">Recomendacao do BrainAgent</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">{recommendation.reason}</p>
-
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => handleModeSelection(recommendation.recommended_mode)}
-                    className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
-                  >
-                    Aplicar {recommendation.recommended_mode}
-                  </button>
-                  <button
-                    onClick={() => setShowRecommendation(false)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
-                  >
-                    Ver todos os modos
-                  </button>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowRecommendation(false)}
-                className="text-xl text-slate-500 transition hover:text-slate-300"
-                aria-label="Fechar recomendacao"
-              >
-                ×
-              </button>
+      {selectedMode && selectedModeData ? (
+        <div className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-emerald-300/80">
+                Modo ativo do BrainAgent
+              </p>
+              <p className="mt-1 text-sm text-slate-200">
+                <span className="font-mono text-cyan-200">{selectedModeData.icon}</span>{" "}
+                <span className="font-semibold">{selectedModeData.name}</span>
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Pode trocar o modo a qualquer momento antes de gerar ou reenviar exercicios.
+              </p>
             </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {selectedMode && selectedModeData ? (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="rounded-xl border border-emerald-700/50 bg-emerald-950/20 p-4"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-emerald-300/80">
-                  Modo ativo do BrainAgent
-                </p>
-                <p className="mt-1 text-sm text-slate-200">
-                  {selectedModeData.emoji} <span className="font-semibold">{selectedModeData.name}</span>
-                </p>
-                <p className="mt-1 text-xs text-slate-400">
-                  Pode trocar o modo a qualquer momento antes de gerar ou reenviar exercicios.
-                </p>
-              </div>
-              <button
-                onClick={() => onModeSelected(selectedMode)}
-                disabled={isLoading}
-                className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {isLoading ? "Iniciando..." : "Continuar com este modo"}
-              </button>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+            <button
+              type="button"
+              onClick={() => onModeSelected(selectedMode)}
+              disabled={isLoading}
+              className="rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-5 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {isLoading ? "Iniciando..." : "Continuar com este modo"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
-  )
+  );
 }
