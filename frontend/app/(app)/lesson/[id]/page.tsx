@@ -373,6 +373,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
   const [feedback, setFeedback] = useState<string | null>(null);
   const [xpEarned, setXpEarned] = useState<number | null>(null);
   const [modeResult, setModeResult] = useState<Record<string, unknown> | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -385,7 +386,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
   const flowStatus = {
     modeChosen: !!selectedMode,
     exerciseGenerated: !!exercise,
-    submitted: !!modeResult,
+    submitted,
   };
 
   async function generateExercise() {
@@ -397,6 +398,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
     setFeedback(null);
     setModeResult(null);
     setXpEarned(null);
+    setSubmitted(false);
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -447,6 +449,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
       setFeedback(submitted.feedback);
       setModeResult(submitted.mode_result ?? null);
       setXpEarned(submitted.xp_earned);
+      setSubmitted(true);
       setChatMessages((prev) => [
         ...prev,
         {
@@ -536,6 +539,7 @@ function ExerciseSection({ lessonId, lessonTitle }: { lessonId: string; lessonTi
                   setExercise(null);
                   setModeResult(null);
                   setFeedback(null);
+                  setSubmitted(false);
                 }}
                 className="mt-2 text-xs text-slate-400 underline"
               >
